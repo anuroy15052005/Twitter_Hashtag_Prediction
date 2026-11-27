@@ -1,0 +1,8 @@
+# Use Python 3.11. TensorFlow 2.15 provides the Keras 2 API used by this project.
+numpy<2.0
+pandas>=1.5,<3.0
+tensorflow==2.15.1
+nltk==3.8.1
+scikit-learn>=1.2,<2.0
+pydot>=1.4.2,<4.0
+joblib>=1.2,<2.0

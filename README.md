@@ -18,18 +18,20 @@ demonstration script. Running it:
 6. Reloads the saved model, predicts labels for a small selection of validation
    tweets, and prints predicted and actual labels.
 
-Despite the presence of `test.csv` and `sampleSubmission.csv`, the script does
-**not** currently make predictions for `test.csv` or write a submission file.
-Its printed examples come from the held-out portion of `train.csv`.
+The original script does **not** make predictions for `test.csv` or write a
+submission file; its printed examples come from a held-out portion of
+`train.csv`. The structured pipeline described below supports both evaluation
+and test-set submission generation.
 
 ## Repository contents
 
 | Path | Purpose |
 | --- | --- |
 | `twitter_hashtag.py` | Data preparation, model definition, training, saving, and validation examples. |
+| `ml_pipeline.py` | Structured CPU-friendly training, evaluation, model saving, and submission prediction CLI. |
 | `train.csv` | Labeled training data: 77,946 rows with tweet text, metadata, and 24 label columns. |
-| `test.csv` | Unlabeled competition/test data: 42,157 rows. Not used by the current script. |
-| `sampleSubmission.csv` | Submission-format example with 24 output-label columns. Not written by the current script. |
+| `test.csv` | Unlabeled competition/test data: 42,157 rows. Used by `ml_pipeline.py predict`, not the original script. |
+| `sampleSubmission.csv` | Submission-format example with 24 output-label columns. Used to validate the generated submission schema. |
 | `contractions.pkl` | Pickled contraction-expansion mapping used during tweet cleaning. |
 | `variableNames.txt` | Human-readable descriptions of the sentiment (`s`), timing (`w`), and weather-kind (`k`) label codes. |
 | `s2s/` | Existing TensorFlow SavedModel files. The script trains and saves a model here before loading it. |
@@ -71,6 +73,41 @@ TensorFlow/Keras:
 Training uses RMSProp, sparse categorical cross-entropy, batch size 500, and 10
 epochs. The script sets the sequence lengths to the most frequent input and
 target lengths in the data, then pads sequences to those lengths.
+
+## Structured ML pipeline
+
+[`ml_pipeline.py`](./ml_pipeline.py) is a separate, reusable alternative to the
+original sequence-to-sequence training script. It builds word and character
+TF-IDF features from tweet text and uses balanced linear SVM classifiers:
+
+- one classifier predicts the 5 sentiment categories;
+- one classifier predicts the 4 timing categories;
+- one-vs-rest classifiers predict the 15 weather-kind labels independently.
+
+The pipeline uses a reproducible 80/20 validation split to report accuracy,
+macro/weighted F1 for the categorical outputs, and micro/macro F1 plus exact
+match for the multi-label output. It then fits the saved model on all labeled
+training rows. This provides a useful benchmark, but **does not guarantee**
+better performance than the existing model; compare the validation metrics
+before choosing a model.
+
+Train, evaluate, and save the model:
+
+```powershell
+python .\ml_pipeline.py train --data train.csv --model artifacts/weather_tfidf.joblib
+```
+
+The pipeline prints its validation metrics and also saves them beside the model
+as `weather_tfidf.metrics.json`. Generate a submission from `test.csv`:
+
+```powershell
+python .\ml_pipeline.py predict --data test.csv --model artifacts/weather_tfidf.joblib --output submission.csv --sample-submission sampleSubmission.csv
+```
+
+The resulting file contains `id` and the 24 label columns in the sample
+submission's order. This pipeline does not require TensorFlow, Graphviz, or a
+GPU; the Python dependencies are listed in `requirements.txt`. Generated
+models are written to `artifacts/`, which is ignored by Git.
 
 ## Environment setup (Windows PowerShell)
 

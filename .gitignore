@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Generated output
+model_plot.png
+*.log
+
+# Saved TensorFlow model (see note below)
+s2s/
+artifacts/
